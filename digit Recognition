@@ -1,0 +1,42 @@
+#This R script written to Predict MNIST data Handwritten Digit collection
+#Process include Train A model->Predict-> Test Model
+#Model parameters taken from various sources
+
+
+library(h2o) #http://docs.h2o.ai/h2o/latest-stable/h2o-docs/welcome.html
+
+#starting H20 server
+localH2O = h2o.init(ip = "localhost", port = 54321, startH2O = TRUE)
+
+#reading training data
+train.data = h2o.importFile(path = 'train.csv', destination_frame = "mnist.hex")
+train <- as.data.frame(train.data)
+train$label <- as.factor(train$label)
+train_h2o <- as.h2o(train)
+
+set.seed(1105) # for consistant results all time
+model <- h2o.deeplearning(x = 2:785, #Number of input
+                          y = 1,
+                          training_frame = train_h2o,
+                          activation = "RectifierWithDropout",
+                          input_dropout_ratio = 0.2,
+                          hidden_dropout_ratios = c(0.5,0.5),
+                          balance_classes = TRUE, 
+                          hidden = c(800,800), #Hidden layers
+                          epochs = 500) #500 time Iteration on the data
+
+
+#Reading testing data
+test_h2o <- h2o.importFile(path = 'test.csv', destination_frame = "test_h2o")
+
+#prediction
+ydata <- h2o.predict(model, test)
+#Generating .csv file for Submission
+ImageId <- as.numeric(seq(1,28000)) #Number of test Images Counter
+names(ImageId)[1] <- "ImageId"
+predictions <- cbind(as.data.frame(ImageId),as.data.frame(ydata[,1]))
+names(predictions)[2] <- "Label"
+
+#write results in a file for submission
+write.table(as.matrix(predictions), file="mnist_dnn.csv", row.names=FALSE, sep=",")
+#.csv file can be uploaded to kaggle to get the results
